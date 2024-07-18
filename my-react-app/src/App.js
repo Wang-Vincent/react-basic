@@ -2,16 +2,19 @@
 // import './App.css';
 //根组件 // App -> index.js -> public/index.html(root)
 
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import './index.css'
 import './App.scss'
 import avatar from './images/bozai.png'
 import avatar1 from './images/bozai.png'
-import _ from 'lodash'
+import _, { set } from 'lodash'
 import classNames from 'classnames'
 import { useRef } from 'react';
 import { v4 as uuidV4 } from 'uuid';
 import dayjs from 'dayjs';
+import { createContext } from 'react'
+import { useEffect } from 'react'
+import axios from 'axios'
 
 /*  p5 声明表达式
 1.使用引号传递字符串
@@ -179,9 +182,117 @@ const tabs = [
 //2 child receive props param 参数 
 
 function Son (props) {
+  //props 对象里包含父组件传递过来的所有数据
+  //{name: "父组件的数据"}
   console.log(props)
-  return <div>this is son , {props.name}</div>
+  return <div>this is son , {props.name}, jsx: {props.child}, {props.children}</div>
+  //p25 不允许修改父组件传过来的数据，只读 data received from parent is read only
 }
+
+function SonTOFather ({ onGetSonMsg}) {
+  //p27 child to parent 子传父 在子组件中调用父组件中的函数并传递实参
+  const sonMsg = 'son Message'
+  return(
+    <div>return sonMessage
+      <button onClick={()=>onGetSonMsg(sonMsg)}>sendMsg</button>
+    </div>
+  )
+}
+
+function SonToSonBro ({broName})
+  //28 child to child 1 child to parent 2 parent to another child
+  { return <div>Receiving child to child: {broName}</div> }
+
+// p29 1 createContext 方法创建上下文对象 
+const MessageContext = createContext()
+//2 顶层组件 通过provider组件提供数据 
+//3 底层组件 通过useContext hook function use data
+
+function P29A () {
+  return(
+    <div>P29A component
+      <P29B></P29B>
+    </div>
+  )
+}
+
+function P29B () {
+  const msg = useContext(MessageContext)
+  return(
+    <div>P29B component: {msg}
+    </div>
+  )
+}
+
+//p32
+
+function P32Conponent () {
+  useEffect(()=>{
+    const p32timer = setInterval(()=>{
+      console.log('p32 mounted 定时器执行中 timer running')
+    },1000)
+
+    return () => {
+      clearInterval(p32timer)
+    }
+  },[])
+
+  return <div>P32 conponent</div>
+}
+
+//p33 customized hook
+// 1 声明 initialize function starts with "use"
+// 2 封装 encapsulation reusable logics
+// 3 return obj or array from function 
+// 4 use and unbox this function whenever the logic is needed
+
+function useToggle () {
+  const [boolean, setBoolean] = useState(true)
+  const toggle = () => setBoolean(!boolean)
+  return { boolean, toggle }
+}
+
+//p37 encapsul ui conponent (comments)
+function UIItem ({ item,onDelete }) {
+  
+  return (<div className="reply-item" key={item.rpid}>
+    {/* 头像 */}
+    <div className="root-reply-avatar">
+      <div className="bili-avatar">
+        <img
+          className="bili-avatar-img"
+          alt=""
+          src={item.user.avatar}
+        />
+      </div>
+    </div>
+
+    <div className="content-wrap">
+      {/* 用户名 */}
+      <div className="user-info">
+        <div className="user-name">{item.user.uname}</div>
+      </div>
+      {/* 评论内容 */}
+      <div className="root-reply">
+        <span className="reply-content">{item.content}</span>
+        <div className="reply-info">
+          {/* 评论时间 */}
+          <span className="reply-time">{item.ctime}</span>
+          {/* 评论数量 */}
+          <span className="reply-time">点赞数:{item.like}</span>
+
+          {/* p15 删除功能实现，条件显示：uid相同才显示， onclick传id,filter掉*/}
+          {user.uid === item.user.uid &&
+          <span className="delete-btn" onClick={()=> onDelete(item.rpid)}>
+            删除
+          </span>}
+
+        </div>
+      </div>
+    </div>
+  </div>)
+}
+
 
 function App() {
 
@@ -210,7 +321,30 @@ const handleP12Click=()=>{
 //p14 style rendering 使用useState维护list
 // const [commentList,setCommentList]=useState(defaultList)
 // default order by hot
-const [commentList,setCommentList]=useState(_.orderBy(defaultList,'like','desc'))
+// const [commentList,setCommentList]=useState(_.orderBy(defaultList,'like','desc'))
+
+//p35 useEffect get data from api
+
+
+//p36 encapsulate commentList
+
+function useGetP36List () {
+  const [commentList, setCommentList] = useState([])
+
+  useEffect(() => {
+    //request data
+    async function getP35List() {
+      const res = await axios.get('http://localhost:3004/list')
+      setCommentList(res.data)
+    }
+    getP35List()
+  }, [])
+
+  return {commentList, setCommentList}
+}
+
+const {commentList, setCommentList} = useGetP36List()
+
 
 const handleDeleteComment = (rpid) => {
   console.log(rpid)
@@ -303,6 +437,73 @@ const commentInputRef = useRef()
 //p24
 
 const name = 'p24 in app before return'
+
+
+//p27
+
+const getMsg = (msg) => {
+  console.log(msg)
+  setMsg(msg)
+  setBrotherMsg(msg)
+}
+
+const [msg, setMsg] = useState('')
+
+//p28
+
+const [brotherMsg, setBrotherMsg] = useState('')
+
+//p29
+
+const p29msg = "p29 msg in app before return"
+
+//p30 useEffect
+
+const p30URL = 'http://geek.itheima.net/v1_0/channels'
+
+const [p30List, setP30List] = useState([])
+
+useEffect(()=>{
+  console.log('useEffect run')
+  // get channels
+  async function getP30List(){
+    const resP30 = await fetch(p30URL)
+    const jsonResP30 = await resP30.json()
+    console.log(jsonResP30)
+    setP30List(jsonResP30.data.channels)
+  }
+  getP30List()
+},[])
+
+//p31 useEffect with dependency 依賴項
+
+const [p31Count, setP31Count] = useState(0)
+useEffect(()=>{
+  console.log('useEffect run with no dependency(run at first and run when clicked)')
+  document.title = `p31 count is ${p31Count}`
+})
+
+useEffect(()=>{
+  console.log('useEffect run with empty array (run only once)')
+  document.title = `p31 count is ${p31Count}`
+},[])
+
+useEffect(()=>{
+  console.log('useEffect run with dependency (run when clicked)')
+  document.title = `p31 count is ${p31Count}`
+},[p31Count])
+
+
+
+//p32 useEffect with cleanup 清除副作用
+
+const [showP32, setShowP32] = useState(true)
+
+//p33 customized hook
+
+const { boolean, toggle } = useToggle()
+
+//p34 �������组件通信
 
   return (
     <div className="App">
@@ -420,42 +621,7 @@ const name = 'p24 in app before return'
           
           {/* 评论项 */}
           {commentList.map(item=>(
-            <div className="reply-item" key={item.rpid}>
-            {/* 头像 */}
-            <div className="root-reply-avatar">
-              <div className="bili-avatar">
-                <img
-                  className="bili-avatar-img"
-                  alt=""
-                  src={item.user.avatar}
-                />
-              </div>
-            </div>
-
-            <div className="content-wrap">
-              {/* 用户名 */}
-              <div className="user-info">
-                <div className="user-name">{item.user.uname}</div>
-              </div>
-              {/* 评论内容 */}
-              <div className="root-reply">
-                <span className="reply-content">{item.content}</span>
-                <div className="reply-info">
-                  {/* 评论时间 */}
-                  <span className="reply-time">{item.ctime}</span>
-                  {/* 评论数量 */}
-                  <span className="reply-time">点赞数:{item.like}</span>
-
-                  {/* p15 删除功能实现，条件显示：uid相同才显示， onclick传id,filter掉*/}
-                  {user.uid === item.user.uid &&
-                  <span className="delete-btn" onClick={()=> handleDeleteComment(item.rpid)}>
-                    删除
-                  </span>}
-
-                </div>
-              </div>
-            </div>
-          </div>
+            <UIItem key={item.rpid} item={item} onDelete={handleDeleteComment}/>
           ))}
 
           {/* p19 */}
@@ -478,8 +644,58 @@ const name = 'p24 in app before return'
 
           {/* p24 parent to child 父子*/}
           <div>
-            <Son name={name}/>
+            <Son 
+            name={name}
+            age={18}
+            isTrue={false}
+            obj={{name:"jack"}}
+            cb={() => console.log('p25')}
+            child={<span>child span p25</span>}
+            >
+              <span>p26 span</span>
+            </Son>
           </div>
+
+          <div>p27(son to father, child to parent) {msg}
+            <SonTOFather onGetSonMsg={getMsg}/>
+          </div>
+
+          <div> <SonToSonBro broName={brotherMsg}/> p28  grandchildren?: {brotherMsg}
+          </div>
+
+          <div> p29 useContext 
+
+            <MessageContext.Provider value={p29msg}>Msg Context Provider
+              <P29A/>
+            </MessageContext.Provider>
+          </div>
+
+          <div> p30 useEffect
+              <ul>
+                {p30List.map(item=>(
+                  <li key={item.id}>{item.name}</li>
+                ))}
+              </ul>
+          </div>
+
+          <div>p31 useEffect with dependency 依赖项
+            <p>{p31Count}</p>
+            <button onClick={()=> setP31Count(p31Count+1)}>add{p31Count}</button>
+          </div>
+
+          <div>p32 useEffect with cleanup
+            <div>
+              {showP32 && <P32Conponent/>}
+            <button onClick={()=> setShowP32(false)}>delete p32 conponent</button>
+            </div>
+          </div>
+
+          <div>
+            p33 customized hook
+            {boolean && <div>p33 toggle</div>}
+            <button onClick={toggle}>toggle</button>
+          </div>
+
 
       {/* {getName()} */}
       {/* <header className="App-header">
